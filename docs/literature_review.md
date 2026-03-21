@@ -8,15 +8,32 @@ Accurate sales prediction is a cornerstone of modern business intelligence. Trad
 
 ### 2.1 Traditional / Statistical Approaches with Text Features
 
-Early work by Perelman and Grinberg demonstrated that straightforward text mining can be surprisingly effective for sales outcome prediction. Using bag‑of‑words (BoW) representations paired with logistic regression, they classified open sales opportunities as wins or losses. Their model achieved accuracy on par with human judgment, revealing that simple lexical signals—e.g., tokens like *"signed"* and *"approval"*—carry strong predictive power for deal closure. This approach treats text as a flat feature vector, discarding word order and semantic context but gaining interpretability and low computational cost. However, the authors themselves noted a critical limitation: the absence of structured business features (deal value, account history) from the model, suggesting that combining text and non‑text data would yield superior classifiers.
+Early work by Perelman and Grinberg demonstrated that straightforward text mining can be surprisingly effective for sales outcome prediction. Using bag-of-words (BoW) representations paired with logistic regression, they classified open sales opportunities as wins or losses. Their model achieved accuracy on par with human judgment, revealing that simple lexical signals—e.g., tokens like *"signed"* and *"approval"*—carry strong predictive power for deal closure. This approach treats text as a flat feature vector, discarding word order and semantic context but gaining interpretability and low computational cost.  
+
+However, the authors themselves noted a critical limitation: the absence of structured business features (deal value, account history) from the model, suggesting that combining text and non-text data would yield superior classifiers.  
+📄 Source: https://cs229.stanford.edu/proj2013/PerelmanGrinberg-PredictingSalesWithText.pdf
+
+---
 
 ### 2.2 Modern Deep Learning and NLP Approaches
 
-The EMNLP 2024 work by Koval, Andrews, and Yan represents the deep learning frontier of this space. They introduced a multimodal time‑series forecasting task that fuses long financial documents with numerical time‑series data (quarterly earnings, macroeconomic indicators). Their key insight is that **each modality contains unique, non‑redundant information**—text captures qualitative management commentary and market sentiment, while numerical data encodes precise quantitative trends. They propose a multi‑stage training procedure where unimodal representations are first learned independently and then fused, achieving state‑of‑the‑art performance. This approach demonstrates the power of careful modality‑specific pre‑training but also highlights significant complexity in architecture design and training pipelines, making it less accessible for typical sales analytics applications.
+The EMNLP 2024 work by Koval, Andrews, and Yan represents the deep learning frontier of this space. They introduced a multimodal time-series forecasting task that fuses long financial documents with numerical time-series data (quarterly earnings, macroeconomic indicators).  
+
+Their key insight is that **each modality contains unique, non-redundant information**—text captures qualitative management commentary and market sentiment, while numerical data encodes precise quantitative trends. They propose a multi-stage training procedure where unimodal representations are first learned independently and then fused, achieving state-of-the-art performance.  
+
+This approach demonstrates the power of careful modality-specific pre-training but also highlights significant complexity in architecture design and training pipelines, making it less accessible for typical sales analytics applications.  
+📄 Source: https://aclanthology.org/2024.findings-emnlp.486.pdf/  
+
+---
 
 ### 2.3 Hybrid / Representation Learning Approaches
 
-Shi et al. directly addressed the question of how to combine text and tabular data at scale. Their benchmark of 18 real‑world multimodal datasets evaluated a spectrum of strategies: from simple two‑stage pipelines (NLP featurization → tabular AutoML) to end‑to‑end multimodal Transformers. The most effective approach was **stack‑ensembling a multimodal Transformer with gradient‑boosted tree models**, which won or placed highly in multiple real‑world prediction competitions. This finding is notable because it shows that neither pure NLP nor pure tabular methods dominate—the best performance comes from architectures that respect the different inductive biases of text (sequential, semantic) and tabular data (feature interactions, heterogeneous types). Yet, the resulting systems are complex multi‑model ensembles that sacrifice simplicity and interpretability for raw predictive power.
+Shi et al. directly addressed the question of how to combine text and tabular data at scale. Their benchmark of 18 real-world multimodal datasets evaluated a spectrum of strategies: from simple two-stage pipelines (NLP featurization → tabular AutoML) to end-to-end multimodal Transformers.  
+
+The most effective approach was **stack-ensembling a multimodal Transformer with gradient-boosted tree models**, which won or placed highly in multiple real-world prediction competitions. This finding is notable because it shows that neither pure NLP nor pure tabular methods dominate—the best performance comes from architectures that respect the different inductive biases of text (sequential, semantic) and tabular data (feature interactions, heterogeneous types).  
+
+Yet, the resulting systems are complex multi-model ensembles that sacrifice simplicity and interpretability for raw predictive power.  
+📄 Source: https://arxiv.org/pdf/2111.02705/
 
 ## 3. Comparative Analysis
 
