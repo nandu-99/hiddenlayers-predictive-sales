@@ -56,6 +56,20 @@ This means each token in the tabular stream can attend to both other tabular tok
 
 ---
 
+### 2.3 Advanced Regularisation and Self-Supervision for Tabular–Text Fusion
+
+The Phase 2 architecture is only half the story — on an 8,000-sample dataset the second lever is **data efficiency**: how much learning signal can be extracted from each sample, and how the training distribution is shaped. Three lines of work inform Phase 2's regularisation and self-supervision stack.
+
+**Vicinal Risk Minimisation and MixUp.** Zhang et al. (2018) introduce MixUp, which trains models on linear interpolations of input–label pairs drawn from a Beta-distributed mixing coefficient. The method is a practical instantiation of Vicinal Risk Minimisation (Chapelle et al., 2001): instead of minimising empirical risk on observed data, the model minimises risk over a smoothed neighbourhood distribution, shrinking the Lipschitz constant of the learned function almost everywhere. Subsequent work (Manifold MixUp, Verma et al. 2019; CutMix, Yun et al. 2019) extends the idea to hidden representations and structured masks. For tabular–text fusion, MixUp is particularly well-motivated on the tabular branch: CRM feature vectors occupy a continuous, linearly-meaningful space (interpolating "deal size" is well-defined) where mixing is semantically coherent, whereas mixing two contextualised transcript embeddings is not obviously well-posed.
+
+**Curriculum Learning.** Bengio et al. (2009) formalise the empirical observation that models trained on progressively harder examples converge to better optima than models trained on random shuffles — an analogue of continuation methods in non-convex optimisation. For sales conversations, conversation length provides a natural, data-derived difficulty signal: short conversations contain fewer turns, less narrative drift, and more direct outcome cues, while long multi-turn negotiations demand higher reasoning capacity from the encoder. Curriculum by $\texttt{conversation\_length}$ is therefore both principled and zero-cost to implement.
+
+**Self-Supervised Pretraining for Tabular Data.** Masked Language Modelling (Devlin et al., 2019) and Masked Image Modelling (He et al., 2022) have established self-supervised pretraining as the dominant data-efficiency strategy in text and vision. The tabular analogue is Masked Tabular Feature Modelling, popularised by VIME (Yoon et al., 2020) and SAINT (Somepalli et al., 2021): randomly mask a fraction of feature values and train the encoder to reconstruct them from the unmasked context. This extracts dependency structure between CRM features (e.g. engagement co-varies with conversation length) without using a single conversion label. On datasets with fewer than ~10K labelled samples — exactly our regime — SAINT shows that SSL pretraining can close 30–70% of the gap between small-data fine-tuning and large-data training from scratch.
+
+**Critical gap.** None of these methods have been evaluated in the conversational sales-prediction setting, nor combined with a cross-modal fusion architecture. The Phase 2 ablations measure each independently and in combination with the GCMA block.
+
+---
+
 ## 3. Comparative Analysis
 
 The progression from Phase 1 to Phase 2 mirrors a broader arc in the literature:
@@ -116,3 +130,12 @@ This progressive strategy — from Phase 1's interpretable baseline to Phase 2's
 7. Gorishniy, Y., Rubachev, I., & Babenko, A. (2021). Revisiting Deep Learning Models for Tabular Data. *NeurIPS 2021*.
 8. Finn, C., Abbeel, P., & Levine, S. (2017). Model-Agnostic Meta-Learning for Fast Adaptation of Deep Networks. *ICML 2017*.
 9. Štrumbelj, E. & Kononenko, I. (2010). An Efficient Explanation of Individual Classifications Using Game Theory. *JMLR*, 11(1):1–18.
+10. Zhang, H., Cisse, M., Dauphin, Y. N., & Lopez-Paz, D. (2018). mixup: Beyond Empirical Risk Minimization. *ICLR 2018*.
+11. Chapelle, O., Weston, J., Bottou, L., & Vapnik, V. (2001). Vicinal Risk Minimization. *NeurIPS 2000*.
+12. Verma, V. et al. (2019). Manifold Mixup: Better Representations by Interpolating Hidden States. *ICML 2019*.
+13. Yun, S. et al. (2019). CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features. *ICCV 2019*.
+14. Bengio, Y., Louradour, J., Collobert, R., & Weston, J. (2009). Curriculum Learning. *ICML 2009*.
+15. Yoon, J., Zhang, Y., Jordon, J., & van der Schaar, M. (2020). VIME: Extending the Success of Self- and Semi-Supervised Learning to Tabular Domain. *NeurIPS 2020*.
+16. Somepalli, G. et al. (2021). SAINT: Improved Neural Networks for Tabular Data via Row Attention and Contrastive Pre-Training. *arXiv:2106.01342*.
+17. He, K., Chen, X., Xie, S., Li, Y., Dollár, P., & Girshick, R. (2022). Masked Autoencoders Are Scalable Vision Learners. *CVPR 2022*.
+18. Devlin, J. et al. (2019). BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. *NAACL-HLT 2019*.
