@@ -5,5 +5,7 @@ seaborn
 matplotlib
 torch
 sentence-transformers
+transformers
 datasets
+tqdm
 ipython
