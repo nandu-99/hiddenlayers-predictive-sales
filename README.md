@@ -21,24 +21,24 @@
 
 ## 4. Approach: An End-to-End Modular Pipeline
 
-### Phase 1: Exploratory Data Analysis & Data Quality
-- Conducted exhaustive exploratory data analysis to understand feature distributions, structural relationships, and temporal engagement variations.
-- Screened all features for target leakage to ensure no posterior proxies of the final deal state were inadvertently included.
+The project is delivered in two course phases. **Phase 1** establishes a classical + shallow-DL baseline; **Phase 2** replaces the PCA-compressed text pathway with a frozen DistilBERT encoder and introduces a novel Gated Cross-Modal Attention (GCMA) fusion block.
 
-### Phase 2: Feature Engineering
-- **Text Embeddings:** Applied TF-IDF coupled with Truncated SVD, as well as neural embeddings (e.g., BERT-based), subsequently reduced via PCA to extract meaningful, dense numerical representations from transcripts.
-- **Interaction Features:** Crafted composite metrics (e.g., sentiment trajectory, engagement velocity) accurately capturing the evolution of the dialogue constraints.
+### Phase 1 — Classical ML + Shallow Deep Learning
 
-### Phase 3: Modeling & Ablation Studies
-- **Baseline ML:** Implemented robust classical models (Class-Weighted Random Forest) utilizing explicitly engineered tabular parameters.
-- **Tabular DL:** A Multi-Layer Perceptron (MLP) trained exclusively on the tabular dataset.
-- **Standard Deep Learning:** Neural architectures built solely on standardized PCA-compressed text embeddings to capture semantic similarity.
-- **Domain-Modified DL:** Deep Learning models dynamically tuned with Precision-Recall optimization thresholds and weighted training loss functions to confront severe class imbalances natively.
-- **Hybrid Fusion (Ensemble):** A sophisticated network seamlessly synergizing the structured robustness of tree-based inputs alongside the nuanced comprehension of Deep Learning embeddings.
+- **EDA & Data Quality:** Exhaustive exploratory analysis of feature distributions, structural relationships, and temporal engagement variations; all features screened for target leakage.
+- **Feature Engineering:** TF-IDF + Truncated SVD and MiniLM neural embeddings, reduced via PCA-20 to dense numerical representations. Composite interaction features (sentiment trajectory, engagement velocity) capture dialogue evolution.
+- **Modeling:** Class-Weighted Random Forest, Tabular MLP, Text-only MLP on PCA embeddings, Domain-Modified DL (threshold tuning + weighted loss), and a Hybrid Late-Fusion ensemble.
+- **Key finding:** PCA-20 was the bottleneck — the text pathway discarded most of the language signal, which is what motivated Phase 2.
+
+### Phase 2 — Transformer Text Encoding + Gated Cross-Modal Attention
+
+- **Frozen DistilBERT Text Encoder** ([`04_phase2_text_encoding.ipynb`](notebooks/04_phase2_text_encoding.ipynb)): `distilbert-base-uncased` with `[CLS]` pooling produces a 768-dim per-conversation representation. No fine-tuning — the encoder is used as a feature extractor, preserving the full semantic content that PCA-20 previously destroyed.
+- **Dual-Stream Models** ([`05_phase2_models.ipynb`](notebooks/05_phase2_models.ipynb)): Tabular MLP, Text-only MLP over DistilBERT features, a Concat-Fusion baseline, and the novel **GCMAFusion** — a tabular branch queries K learned text views via scaled dot-product attention, then a learned sigmoid gate decides per-sample how much to trust the text branch versus the tabular projection.
+- **Ablation & Interpretability** ([`06_phase2_validation.ipynb`](notebooks/06_phase2_validation.ipynb)): Component-wise ablations (attention off, gate off, `K=4`) plus three data-efficiency levers — MixUp (VRM), Curriculum Learning by `conversation_length`, and SSL pretraining via Masked Tabular Feature Modeling. Interpretability artifacts include attention heatmaps over the 8 text views, gate-value distributions per outcome class, and per-sample Won/Lost case studies.
 
 ## 5. Final Results & Model Benchmarks
 
-Proving mathematical utility strictly through empirical separation, the ablation study definitively shows that tabular behavioral features carry the overwhelming majority of predictive signal for conversion outcomes in this specific SaaS domain, while the Hybrid Fusion architecture successfully balances both modalities.
+### Phase 1 — Baselines and Late Fusion
 
 | Architecture Type | Feature Blocks | F1-Score | Accuracy |
 |---------|---------|----------|----------|
@@ -46,9 +46,18 @@ Proving mathematical utility strictly through empirical separation, the ablation
 | **Tabular DL (MLP)** | Tabular Focus | 0.9655 | 0.9656 |
 | **Standard DL (No Mod)** | PCA Embeddings | 0.5332 | 0.5119 |
 | **Domain-Modified DL** | PCA Embeddings | 0.6630 | 0.4962 |
-| **Hybrid Fusion (Full Integration)** | Tabular Logics + Vectors | **0.9710** | **0.9712** |
+| **Hybrid Late Fusion** | Tabular + PCA Vectors | **0.9710** | **0.9712** |
 
-*(Metrics reflect aggregate validation benchmarking as derived directly from the application notebook)*
+### Phase 2 — DistilBERT + GCMA (Test Split, seed 42)
+
+| Model | Feature Blocks | F1-Score | Accuracy |
+|---------|---------|----------|----------|
+| **TextMLP (DistilBERT only)** | 768-dim `[CLS]` | 0.7048 | 0.6992 |
+| **TabularMLP** | Tabular Focus | 0.9664 | 0.9667 |
+| **GCMAFusion (full)** | Tabular + DistilBERT + Cross-Modal Attention | 0.9688 | 0.9692 |
+| **ConcatFusion** | Tabular + DistilBERT (concat) | **0.9749** | **0.9750** |
+
+**Phase 2 ablations (ΔF1 vs. Full GCMA):** `− Attention` +0.0060, `+ MixUp` +0.0051, `+ SSL pretrain` +0.0043, `K=4` +0.0040, `+ Curriculum` +0.0017, `− Gate` +0.0002. The small deltas indicate the fusion is saturated by the tabular signal on this dataset; the text branch alone recovers F1 ≈ 0.70 (vs. 0.55 in Phase 1), confirming the PCA-20 bottleneck was the Phase 1 ceiling. Interpretability outputs (attention heatmap, gate distributions) are produced inline in [`06_phase2_validation.ipynb`](notebooks/06_phase2_validation.ipynb).
 
 ## 6. Project Structure (Modular & Clean)
 
@@ -58,11 +67,20 @@ The codebase strictly follows industry best practices for modularity, neatly org
 hiddenlayers-predictive-sales/
 │
 ├── data/                     # Data storage separated into 'raw/' and 'processed/' silos
-├── docs/                     # Supplemental operational documentation
-├── notebooks/                # Sequential files: EDA, Feature Engineering, Model Application
-├── reports/                  # Generated reports on outcomes and performance metrics
-├── research_papers/          # Theoretical literature review and methodology references
-├── requirements.txt          # Locked Python environments and required dependencies
+├── docs/                     # Literature review, theoretical rigor writeups, dataset & regularization notes
+├── notebooks/
+│   ├── 01_eda_saas_sales_conversations.ipynb
+│   ├── 02_feature_engineering.ipynb                # Phase 1 — TF-IDF + PCA features
+│   ├── 02b_feature_engineering_pretrained_embeddings.ipynb
+│   ├── 03_model_application.ipynb                  # Phase 1 — RF, MLPs, Hybrid Late Fusion
+│   ├── 03b_model_application_pretrained_embeddings.ipynb
+│   ├── 04_phase2_text_encoding.ipynb               # Phase 2 — frozen DistilBERT encoding
+│   ├── 05_phase2_models.ipynb                      # Phase 2 — TextMLP, TabularMLP, Concat, GCMAFusion
+│   └── 06_phase2_validation.ipynb                  # Phase 2 — ablations, attention/gate interpretability
+├── presentations/            # Phase 1 and Phase 2 slide decks / demo PDFs
+├── reports/                  # LaTeX + PDF reports for each phase
+├── research_papers/          # Literature review references (SalesRLAgent, TTT, MixUp, MTFM, etc.)
+├── requirements.txt          # Python dependencies (pandas, torch, transformers, tqdm, ...)
 └── README.md                 # Primary system documentation
 ```
 
@@ -72,7 +90,7 @@ To guarantee full reproducibility, all framework backends (PyTorch, Scikit-Learn
 
 ```bash
 # 1. Clone the repository
-git clone <repo_url>
+git clone https://github.com/nandu-99/hiddenlayers-predictive-sales
 cd hiddenlayers-predictive-sales
 
 # 2. Create and activate a virtual Python environment
@@ -85,11 +103,18 @@ pip install -r requirements.txt
 
 ## 8. How to Run
 
-Follow these logically ordered workflow steps to execute the robust data pipeline from ingestion to interpretation:
+Execute the notebooks in order. Phase 1 (01 → 03) produces the classical + shallow-DL baselines; Phase 2 (04 → 06) adds the transformer encoder and GCMA fusion.
 
-1. **Data Exploration:** Open and execute `notebooks/01_eda_saas_sales_conversations.ipynb` to visualize data quality, distribution bounds, and target representation.
-2. **Feature Engineering:** Execute `notebooks/02_feature_engineering.ipynb` to generate PCA embeddings, establish composite text features, and compile output vectors.
-3. **Model Training & Comparison:** Open `notebooks/03_model_application.ipynb` to benchmark Baseline, DL, and Hybrid architectures, validating utility via the rigorous ablation study.
+**Phase 1 — Baselines**
+1. **Data Exploration:** [`notebooks/01_eda_saas_sales_conversations.ipynb`](notebooks/01_eda_saas_sales_conversations.ipynb) — visualize data quality, distribution bounds, and target representation.
+2. **Feature Engineering:** [`notebooks/02_feature_engineering.ipynb`](notebooks/02_feature_engineering.ipynb) — generate PCA-compressed text embeddings and composite features.
+3. **Model Training & Comparison:** [`notebooks/03_model_application.ipynb`](notebooks/03_model_application.ipynb) — benchmark Random Forest, MLP, and Hybrid Late-Fusion architectures.
+
+**Phase 2 — Transformer + GCMA**
+
+4. **Text Encoding:** [`notebooks/04_phase2_text_encoding.ipynb`](notebooks/04_phase2_text_encoding.ipynb) — produce frozen DistilBERT `[CLS]` features (8000 × 768) and cache to `saas_features_pretrained.parquet`. GPU recommended (~3 min on a T4).
+5. **Model Training:** [`notebooks/05_phase2_models.ipynb`](notebooks/05_phase2_models.ipynb) — train TextMLP, TabularMLP, ConcatFusion, and GCMAFusion; writes `phase2_results.csv`.
+6. **Validation & Ablations:** [`notebooks/06_phase2_validation.ipynb`](notebooks/06_phase2_validation.ipynb) — component ablations, MixUp / Curriculum / SSL variants, confusion matrices, attention heatmaps; writes `phase2_ablation_results.csv`.
 
 ## 9. Development Methodology & Code Quality
 
