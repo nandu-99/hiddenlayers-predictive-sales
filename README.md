@@ -3,6 +3,8 @@
 ## 1. Project Title & Overview
 **Project Name:** Predictive Sales Analytics Engine 
 
+**Phase 3 Live Demo:** [https://hiddenlayers-predictive-sales.streamlit.app/](https://hiddenlayers-predictive-sales.streamlit.app/)
+
 **Description:** An AI-driven machine learning system that predicts B2B SaaS sales deal outcomes by intelligently fusing structured CRM data with unstructured conversational dialogue. This predictive engine empowers sales organizations to forecast pipeline accuracy and capture missed revenue opportunities based on data-driven signals rather than human intuition.
 
 **Problem Statement:** Accurately predicting binary sales outcomes (Won/Lost) by modelling the complex interplay between unstructured text data (conversation transcripts, emails) and tabular business constraints (deal size, engagement metrics, stage duration).
@@ -21,7 +23,7 @@
 
 ## 4. Approach: An End-to-End Modular Pipeline
 
-The project is delivered in two course phases. **Phase 1** establishes a classical + shallow-DL baseline; **Phase 2** replaces the PCA-compressed text pathway with a frozen DistilBERT encoder and introduces a novel Gated Cross-Modal Attention (GCMA) fusion block.
+The project is delivered in three course phases. **Phase 1** establishes a classical + shallow-DL baseline; **Phase 2** replaces the PCA-compressed text pathway with a frozen DistilBERT encoder and introduces a novel Gated Cross-Modal Attention (GCMA) fusion block; **Phase 3** fuses the two best models into a differentiable neuro-symbolic hybrid gated by RF epistemic uncertainty.
 
 ### Phase 1 — Classical ML + Shallow Deep Learning
 
@@ -29,6 +31,15 @@ The project is delivered in two course phases. **Phase 1** establishes a classic
 - **Feature Engineering:** TF-IDF + Truncated SVD and MiniLM neural embeddings, reduced via PCA-20 to dense numerical representations. Composite interaction features (sentiment trajectory, engagement velocity) capture dialogue evolution.
 - **Modeling:** Class-Weighted Random Forest, Tabular MLP, Text-only MLP on PCA embeddings, Domain-Modified DL (threshold tuning + weighted loss), and a Hybrid Late-Fusion ensemble.
 - **Key finding:** PCA-20 was the bottleneck — the text pathway discarded most of the language signal, which is what motivated Phase 2.
+
+### Phase 3 — Confidence-Gated Neuro-Symbolic Hybrid
+
+- **Core idea:** The Random Forest computes *epistemic uncertainty* (σ²) as the variance of class-1 probability across its 300 trees. When trees disagree (high σ²), the sample is ambiguous for symbolic reasoning — so a learned gate routes trust to the neural text branch instead.
+- **Fusion rule (differentiable):** `P_hybrid = w · P_DL + (1−w) · P_RF` where `w = σ( MLP([P_RF, σ²_RF, P_DL]) )`.  The gate MLP (3 → 32 → 16 → 1) is trained end-to-end on held-out val-split predictions (stacking protocol — no leakage).
+- **Ablation proof of synergy:** On RF-uncertain test samples (σ² above median) the Hybrid achieves F1 = 0.9606 vs. RF = 0.9518 and DL = 0.9593. The hybrid fixes 17 errors from either branch and introduces **zero new errors** (36.2% error recovery rate).
+- **Architecture diagram:** [`docs/architecture_diagram.png`](docs/architecture_diagram.png)
+- **Notebook:** [`notebooks/07_phase3_hybrid.ipynb`](notebooks/07_phase3_hybrid.ipynb)
+- **Interactive Dashboard:** [Streamlit Live Demo](https://hiddenlayers-predictive-sales.streamlit.app/) — A web app visualizing the Phase 3 Hybrid model's real-time gating mechanism, comparing RF epistemic uncertainty against Neural (DL) probabilities.
 
 ### Phase 2 — Transformer Text Encoding + Gated Cross-Modal Attention
 
@@ -59,6 +70,19 @@ The project is delivered in two course phases. **Phase 1** establishes a classic
 
 **Phase 2 ablations (ΔF1 vs. Full GCMA):** `− Attention` +0.0060, `+ MixUp` +0.0051, `+ SSL pretrain` +0.0043, `K=4` +0.0040, `+ Curriculum` +0.0017, `− Gate` +0.0002. The small deltas indicate the fusion is saturated by the tabular signal on this dataset; the text branch alone recovers F1 ≈ 0.70 (vs. 0.55 in Phase 1), confirming the PCA-20 bottleneck was the Phase 1 ceiling. Interpretability outputs (attention heatmap, gate distributions) are produced inline in [`06_phase2_validation.ipynb`](notebooks/06_phase2_validation.ipynb).
 
+### Phase 3 — Comparison Table (70/15/15 split, seed=42)
+
+| Phase | Model | F1-Score | Accuracy |
+|-------|-------|----------|----------|
+| Phase 3 | **Confidence-Gated Hybrid** | **0.9749** | **0.9750** |
+| Phase 2 | ConcatFusion | 0.9740 | 0.9742 |
+| Phase 2 | GCMAFusion | 0.9688 | 0.9692 |
+| Phase 2 | TabularMLP | 0.9664 | 0.9667 |
+| Phase 3 | RF (symbolic baseline) | 0.9691 | 0.9692 |
+| Phase 2 | TextMLP (DistilBERT) | 0.7048 | 0.6992 |
+
+Hybrid gain: **ΔF1 = +0.0057 over RF** and **+0.0009 over the best Phase 2 DL model**.
+
 ## 6. Project Structure (Modular & Clean)
 
 The codebase strictly follows industry best practices for modularity, neatly organizing data storage, exploratory logic, execution flows, and theoretical references.
@@ -66,8 +90,11 @@ The codebase strictly follows industry best practices for modularity, neatly org
 ```text
 hiddenlayers-predictive-sales/
 │
-├── data/                     # Data storage separated into 'raw/' and 'processed/' silos
-├── docs/                     # Literature review, theoretical rigor writeups, dataset & regularization notes
+├── data/                     # Data storage — raw/ and processed/ silos
+├── docs/
+│   ├── architecture_diagram.png          # Phase 3 — Confidence-Gated Hybrid (publication-ready)
+│   ├── gcma_architecture.png             # Phase 2 — GCMA Fusion diagram
+│   └── ...                              # Literature review, writeups
 ├── notebooks/
 │   ├── 01_eda_saas_sales_conversations.ipynb
 │   ├── 02_feature_engineering.ipynb                # Phase 1 — TF-IDF + PCA features
@@ -76,28 +103,40 @@ hiddenlayers-predictive-sales/
 │   ├── 03b_model_application_pretrained_embeddings.ipynb
 │   ├── 04_phase2_text_encoding.ipynb               # Phase 2 — frozen DistilBERT encoding
 │   ├── 05_phase2_models.ipynb                      # Phase 2 — TextMLP, TabularMLP, Concat, GCMAFusion
-│   └── 06_phase2_validation.ipynb                  # Phase 2 — ablations, attention/gate interpretability
-├── presentations/            # Phase 1 and Phase 2 slide decks / demo PDFs
+│   ├── 06_phase2_validation.ipynb                  # Phase 2 — ablations, attention/gate interpretability
+│   └── 07_phase3_hybrid.ipynb                      # Phase 3 — Confidence-Gated Neuro-Symbolic Hybrid
+├── streamlit/                # Phase 3 Interactive Web Dashboard
+├── .github/workflows/ci.yml  # GitHub Actions CI — import smoke test + Docker build
+├── presentations/            # Phase 1–3 slide decks / demo PDFs
 ├── reports/                  # LaTeX + PDF reports for each phase
-├── research_papers/          # Literature review references (SalesRLAgent, TTT, MixUp, MTFM, etc.)
-├── requirements.txt          # Python dependencies (pandas, torch, transformers, tqdm, ...)
-└── README.md                 # Primary system documentation
+├── research_papers/          # Literature review references
+├── Dockerfile                # Containerised environment (python:3.10-slim)
+├── setup.sh                  # Turn-key local setup script
+├── requirements.txt          # Python dependencies
+└── README.md
 ```
 
 ## 7. Installation & Reproducible Setup
 
-To guarantee full reproducibility, all framework backends (PyTorch, Scikit-Learn) are configured utilizing deterministic algorithms with a fixed random seed (`seed=42`).
+All framework backends (PyTorch, Scikit-Learn) are configured with deterministic algorithms and a fixed random seed (`seed=42`).
 
+**Option A — automated setup script (recommended)**
 ```bash
-# 1. Clone the repository
 git clone https://github.com/nandu-99/hiddenlayers-predictive-sales
 cd hiddenlayers-predictive-sales
+bash setup.sh           # creates .venv, installs deps, runs import smoke test
+source .venv/bin/activate
+```
 
-# 2. Create and activate a virtual Python environment
-python3.10 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+**Option B — Docker (fully isolated)**
+```bash
+docker build -t hiddenlayers-predictive-sales .
+docker run --rm -it hiddenlayers-predictive-sales bash
+```
 
-# 3. Install project dependencies
+**Option C — manual**
+```bash
+python3.10 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -115,6 +154,11 @@ Execute the notebooks in order. Phase 1 (01 → 03) produces the classical + sha
 4. **Text Encoding:** [`notebooks/04_phase2_text_encoding.ipynb`](notebooks/04_phase2_text_encoding.ipynb) — produce frozen DistilBERT `[CLS]` features (8000 × 768) and cache to `saas_features_pretrained.parquet`. GPU recommended (~3 min on a T4).
 5. **Model Training:** [`notebooks/05_phase2_models.ipynb`](notebooks/05_phase2_models.ipynb) — train TextMLP, TabularMLP, ConcatFusion, and GCMAFusion; writes `phase2_results.csv`.
 6. **Validation & Ablations:** [`notebooks/06_phase2_validation.ipynb`](notebooks/06_phase2_validation.ipynb) — component ablations, MixUp / Curriculum / SSL variants, confusion matrices, attention heatmaps; writes `phase2_ablation_results.csv`.
+
+**Phase 3 — Confidence-Gated Neuro-Symbolic Hybrid**
+
+7. **Hybrid Training & Ablations:** [`notebooks/07_phase3_hybrid.ipynb`](notebooks/07_phase3_hybrid.ipynb) — retrains RF + ConcatFusion on identical split, trains ConfidenceGatedHybrid meta-learner on val predictions (stacking), runs uncertain-zone ablation and error decomposition. GPU recommended (~5 min on a T4). Upload `saas_features_pretrained.parquet` to `/content/` before running in Colab/Kaggle.
+8. **Interactive Dashboard:** Run the Streamlit app locally via `streamlit run streamlit/app.py` or view the [Live Demo](https://hiddenlayers-predictive-sales.streamlit.app/) to interactively explore the Phase 3 gate behavior.
 
 ## 9. Development Methodology & Code Quality
 
