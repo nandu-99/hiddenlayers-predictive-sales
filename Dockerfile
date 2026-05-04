@@ -12,9 +12,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /workspace
 
-# Install Python dependencies first (cached layer)
+# Install Python dependencies first (cached layer).
+# Pre-install CPU-only torch from the PyTorch index — avoids pulling
+# ~3 GB of NVIDIA CUDA wheels that the container will never use.
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip wheel && \
+    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy project
