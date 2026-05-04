@@ -9,3 +9,7 @@ transformers
 datasets
 tqdm
 ipython
+streamlit
+kagglehub
+joblib
+plotly
