@@ -1,0 +1,51 @@
+# Python build / cache artefacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments — never copy into the image
+.venv/
+venv/
+env/
+ENV/
+
+# Git
+.git/
+.gitignore
+.github/
+
+# Notebook checkpoints
+**/.ipynb_checkpoints/
+
+# Data — too large to ship in image; mount at runtime instead
+data/
+*.parquet
+*.csv
+
+# Reports / presentations / large binary assets
+presentations/
+reports/
+research_papers/
+
+# Docs that aren't needed at runtime
+docs/
+
+# IDE / OS junk
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local model artefacts
+artefacts/
+*.pt
+*.joblib
+
+# Logs
+*.log
+logs/

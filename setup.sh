@@ -12,10 +12,10 @@ echo "════════════════════════�
 echo "  hiddenlayers-predictive-sales — environment setup"
 echo "═══════════════════════════════════════════════════════"
 
-# 1. Python version check
+# 1. Python version check (numeric, not lexicographic)
 PY_VER=$("$PYTHON" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 echo "► Python version: $PY_VER"
-if [[ "$PY_VER" < "3.9" ]]; then
+if ! "$PYTHON" -c "import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)"; then
     echo "ERROR: Python 3.9+ required (found $PY_VER). Set PYTHON_BIN to override."
     exit 1
 fi
@@ -40,10 +40,11 @@ pip install --quiet -r requirements.txt
 # 5. Smoke-test critical imports
 echo "► Running import smoke test ..."
 python - <<'PYEOF'
-import importlib, sys
+from importlib.util import find_spec
+import sys
 pkgs = ["pandas", "numpy", "sklearn", "torch", "matplotlib",
         "seaborn", "transformers", "sentence_transformers", "tqdm"]
-failed = [p for p in pkgs if importlib.util.find_spec(p) is None]
+failed = [p for p in pkgs if find_spec(p) is None]
 if failed:
     print(f"WARN: missing packages: {failed}", file=sys.stderr)
     sys.exit(1)
