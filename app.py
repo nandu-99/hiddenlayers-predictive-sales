@@ -15,13 +15,13 @@ from streamlit_models import (
     rf_prob_and_uncertainty,
 )
 
-st.set_page_config(page_title="Phase 3 — Confidence-Gated Hybrid",
+st.set_page_config(page_title="AI-Powered Sales Prediction Dashboard",
                    page_icon="🎯", layout="wide")
 
 # Handle Streamlit Cloud Kaggle secrets
-if "kaggle" in st.secrets:
-    os.environ["KAGGLE_USERNAME"] = st.secrets["kaggle"]["username"]
-    os.environ["KAGGLE_KEY"]      = st.secrets["kaggle"]["key"]
+# if "kaggle" in st.secrets:
+#     os.environ["KAGGLE_USERNAME"] = st.secrets["kaggle"]["username"]
+#     os.environ["KAGGLE_KEY"]      = st.secrets["kaggle"]["key"]
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 1. Load bundle from Kaggle  (cached so it only runs once per session)
@@ -88,7 +88,7 @@ def predict_hybrid(tab_row: np.ndarray, text_row: np.ndarray):
 # ──────────────────────────────────────────────────────────────────────────────
 # 3. UI — sidebar: pick a deal
 # ──────────────────────────────────────────────────────────────────────────────
-st.title("🎯 Phase 3 — Confidence-Gated Neuro-Symbolic Hybrid")
+st.title("🚀 AI-Powered Sales Prediction Dashboard")
 st.caption(
     "Random Forest (symbolic) + ConcatFusion (neural), fused via a learned gate. "
     f"Test F1 = **{meta['test_metrics']['hybrid_f1']:.4f}**."
