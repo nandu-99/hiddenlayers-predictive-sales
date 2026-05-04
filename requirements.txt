@@ -7,3 +7,7 @@ torch
 sentence-transformers
 datasets
 ipython
+streamlit
+kagglehub
+joblib
+plotly
