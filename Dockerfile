@@ -34,3 +34,6 @@ import os; \
 nbs = sorted(f for f in os.listdir('notebooks') if f.endswith('.ipynb')); \
 print('Available notebooks:'); \
 [print(f'  notebooks/{nb}') for nb in nbs]"]
+
+# To run the Streamlit app:
+#   docker run -p 8501:8501 <image> streamlit run streamlit/app.py --server.address=0.0.0.0
