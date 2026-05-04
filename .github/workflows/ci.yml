@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    name: Import smoke test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip wheel
+          pip install -r requirements.txt
+
+      - name: Smoke test — critical imports
+        run: |
+          python - <<'EOF'
+          import pandas, numpy, sklearn, torch, matplotlib, seaborn, transformers, tqdm
+          print(f"pandas      {pandas.__version__}")
+          print(f"numpy       {numpy.__version__}")
+          print(f"sklearn     {sklearn.__version__}")
+          print(f"torch       {torch.__version__}")
+          print(f"transformers {transformers.__version__}")
+          print("All imports OK")
+          EOF
+
+      - name: Verify notebook files exist
+        run: |
+          python - <<'EOF'
+          import pathlib, sys
+          expected = [
+              "notebooks/01_eda_saas_sales_conversations.ipynb",
+              "notebooks/02_feature_engineering.ipynb",
+              "notebooks/03_model_application.ipynb",
+              "notebooks/04_phase2_text_encoding.ipynb",
+              "notebooks/05_phase2_models.ipynb",
+              "notebooks/06_phase2_validation.ipynb",
+              "notebooks/07_phase3_hybrid.ipynb",
+          ]
+          missing = [p for p in expected if not pathlib.Path(p).exists()]
+          if missing:
+              print(f"MISSING: {missing}", file=sys.stderr)
+              sys.exit(1)
+          print(f"All {len(expected)} notebooks present.")
+          EOF
+
+      - name: Verify requirements.txt parses cleanly
+        run: pip check
+
+  docker-build:
+    name: Docker build
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t hiddenlayers-predictive-sales:ci .
+
+      - name: Run smoke test inside container
+        run: |
+          docker run --rm hiddenlayers-predictive-sales:ci \
+            python -c "import pandas, numpy, sklearn, torch; print('Container OK')"
